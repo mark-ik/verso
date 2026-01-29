@@ -44,6 +44,7 @@ use winit::{
 use crate::{
     bookmark::BookmarkManager,
     compositor::IOCompositor,
+    graph::GraphManager,
     keyboard::keyboard_event_from_winit,
     rendering::{RenderingContext, gl_config_picker},
     tab::TabManager,
@@ -100,6 +101,8 @@ pub struct Window {
     pub(crate) menu_event_receiver: MenuEventReceiver,
     /// Window tabs manager
     pub(crate) tab_manager: TabManager,
+    /// Graph canvas manager
+    pub(crate) graph_manager: GraphManager,
     pub(crate) focused_webview_id: Option<WebViewId>,
     /// Window-wide menu. e.g. context menu(Wayland) and browsing history menu.
     pub(crate) webview_menu: Option<Box<dyn WebViewMenu>>,
@@ -159,6 +162,7 @@ impl Window {
                 #[cfg(any(target_os = "macos", target_os = "windows"))]
                 menu_event_receiver: MenuEvent::receiver().clone(),
                 tab_manager: TabManager::new(),
+                graph_manager: GraphManager::new(),
                 focused_webview_id: None,
                 webview_menu: None,
                 show_bookmark: false,
@@ -208,6 +212,7 @@ impl Window {
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             menu_event_receiver: MenuEvent::receiver().clone(),
             tab_manager: TabManager::new(),
+            graph_manager: GraphManager::new(),
             focused_webview_id: None,
             webview_menu: None,
             show_bookmark: false,
@@ -733,6 +738,11 @@ impl Window {
                     }
                     return true;
                 }
+                (modifiers, Code::KeyG) if modifiers == control_or_meta => {
+                    // Toggle graph view with Ctrl+G (Cmd+G on macOS)
+                    (*self).toggle_graph_view();
+                    return true;
+                }
 
                 _ => (),
             }
@@ -1059,6 +1069,78 @@ impl Window {
                 }
             }
         }
+    }
+
+    /// Toggle graph view on/off
+    pub fn toggle_graph_view(&mut self) {
+        let active = !self.graph_manager.is_active();
+        self.graph_manager.set_active(active);
+        
+        // Initialize with a sample node if activating for the first time
+        if active && self.graph_manager.nodes().is_empty() {
+            let node = crate::graph::GraphNode::new(
+                "node1".to_string(),
+                "Sample Node".to_string(),
+                100.0,
+                100.0,
+            );
+            self.graph_manager.add_node(node);
+        }
+        
+        log::info!("Graph view toggled: {}", active);
+    }
+
+    /// Handle double-click on a graph node
+    pub fn handle_graph_node_double_click(
+        &mut self,
+        node_id: &str,
+        constellation_sender: &Sender<EmbedderToConstellationMessage>,
+    ) {
+        if let Some(node) = self.graph_manager.get_node_mut(node_id) {
+            // If node already has a webview, focus it
+            if let Some(webview_id) = node.webview_id {
+                log::info!("Focusing existing webview for node: {}", node_id);
+                self.focused_webview_id = Some(webview_id);
+            } else {
+                // Create a new webview for this node
+                log::info!("Creating webview for node: {}", node_id);
+                let webview_id = WebViewId::new();
+                
+                let hidpi_scale_factor = Scale::new(self.scale_factor() as f32);
+                let size = euclid::Size2D::new(node.size.0, node.size.1) / hidpi_scale_factor;
+                let viewport_details = embedder_traits::ViewportDetails {
+                    size,
+                    hidpi_scale_factor,
+                };
+                
+                // Store the webview ID in the node
+                node.webview_id = Some(webview_id);
+                
+                // Create the webview with initial URL
+                let initial_url = ServoUrl::parse("https://servo.org").unwrap();
+                send_to_constellation(
+                    constellation_sender,
+                    EmbedderToConstellationMessage::NewWebView(
+                        initial_url,
+                        webview_id,
+                        viewport_details,
+                    ),
+                );
+                
+                self.focused_webview_id = Some(webview_id);
+            }
+        }
+    }
+
+    /// Check if a point is over a graph node and return the node ID
+    pub fn get_graph_node_at_point(&self, point: DevicePoint) -> Option<String> {
+        if !self.graph_manager.is_active() {
+            return None;
+        }
+        
+        self.graph_manager
+            .get_node_at_position(&point)
+            .map(|node| node.id.clone())
     }
 }
 

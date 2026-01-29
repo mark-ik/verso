@@ -38,5 +38,7 @@ pub mod download;
 pub(crate) mod storage;
 /// Window tabs manager
 pub mod tab;
+/// Graph canvas manager for node-based UI
+pub mod graph;
 /// Utilities
 pub(crate) mod utils;

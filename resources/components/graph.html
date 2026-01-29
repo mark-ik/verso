@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Canvas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            overflow: hidden;
+        }
+        #canvas {
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        #canvas:active {
+            cursor: grabbing;
+        }
+        .node {
+            position: absolute;
+            width: 200px;
+            min-height: 100px;
+            background: #2a2a2a;
+            border: 2px solid #4a4a4a;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .node:hover {
+            border-color: #6a6a6a;
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+        .node.selected {
+            border-color: #00aaff;
+            box-shadow: 0 0 0 3px rgba(0, 170, 255, 0.2);
+        }
+        .node-header {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .node-content {
+            color: #aaaaaa;
+            font-size: 12px;
+        }
+        .add-node-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #00aaff;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .add-node-btn:hover {
+            background: #0088cc;
+            transform: scale(1.1);
+        }
+        .instructions {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            max-width: 300px;
+            line-height: 1.6;
+        }
+        .instructions h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #00aaff;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas"></div>
+    <button class="add-node-btn" id="addNodeBtn" title="Add Node">+</button>
+    <div class="instructions">
+        <h3>Graph Canvas Controls:</h3>
+        <ul>
+            <li>Click and drag nodes to move them</li>
+            <li>Double-click a node to open webview</li>
+            <li>Click + button to add new nodes</li>
+            <li>Press Ctrl+G (Cmd+G) to toggle graph</li>
+        </ul>
+    </div>
+
+    <script>
+        let nodes = [];
+        let nodeCounter = 1;
+        let selectedNode = null;
+        let draggedNode = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        const canvas = document.getElementById('canvas');
+        const addNodeBtn = document.getElementById('addNodeBtn');
+
+        // Initialize with a sample node
+        function init() {
+            addNode('Sample Node', 100, 100);
+        }
+
+        function addNode(label, x, y) {
+            const nodeId = `node${nodeCounter++}`;
+            const node = {
+                id: nodeId,
+                label: label || `Node ${nodeCounter}`,
+                x: x || Math.random() * (window.innerWidth - 200),
+                y: y || Math.random() * (window.innerHeight - 200)
+            };
+            nodes.push(node);
+            renderNode(node);
+        }
+
+        function renderNode(node) {
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'node';
+            nodeEl.id = node.id;
+            nodeEl.style.left = node.x + 'px';
+            nodeEl.style.top = node.y + 'px';
+            
+            nodeEl.innerHTML = `
+                <div class="node-header">${node.label}</div>
+                <div class="node-content">ID: ${node.id}<br>Double-click to open webview</div>
+            `;
+
+            nodeEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectNode(node);
+            });
+
+            nodeEl.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                openWebView(node);
+            });
+
+            nodeEl.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                startDrag(node, e);
+            });
+
+            canvas.appendChild(nodeEl);
+        }
+
+        function selectNode(node) {
+            if (selectedNode) {
+                const prevEl = document.getElementById(selectedNode.id);
+                prevEl && prevEl.classList.remove('selected');
+            }
+            selectedNode = node;
+            const nodeEl = document.getElementById(node.id);
+            nodeEl.classList.add('selected');
+        }
+
+        function openWebView(node) {
+            console.log('Opening webview for node:', node.id);
+            // This will be handled by Verso to create a servo webview
+            window.prompt(`OPEN_NODE_WEBVIEW:${node.id}`);
+        }
+
+        function startDrag(node, e) {
+            draggedNode = node;
+            const nodeEl = document.getElementById(node.id);
+            const rect = nodeEl.getBoundingClientRect();
+            dragOffset = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (draggedNode) {
+                draggedNode.x = e.clientX - dragOffset.x;
+                draggedNode.y = e.clientY - dragOffset.y;
+                const nodeEl = document.getElementById(draggedNode.id);
+                nodeEl.style.left = draggedNode.x + 'px';
+                nodeEl.style.top = draggedNode.y + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            draggedNode = null;
+        });
+
+        canvas.addEventListener('click', () => {
+            if (selectedNode) {
+                const nodeEl = document.getElementById(selectedNode.id);
+                nodeEl && nodeEl.classList.remove('selected');
+                selectedNode = null;
+            }
+        });
+
+        addNodeBtn.addEventListener('click', () => {
+            const x = window.innerWidth / 2 - 100;
+            const y = window.innerHeight / 2 - 50;
+            addNode(`New Node ${nodeCounter}`, x, y);
+        });
+
+        // Initialize
+        init();
+
+        // Expose function for external calls
+        window.graphCanvas = {
+            addNode: addNode,
+            getNodes: () => nodes
+        };
+    </script>
+</body>
+</html>
