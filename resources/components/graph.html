@@ -97,7 +97,7 @@
 </head>
 <body>
     <div id="canvas"></div>
-    <button class="add-node-btn" id="addNodeBtn" title="Add Node">+</button>
+    <button class="add-node-btn" id="addNodeBtn" title="Add Node" aria-label="Add new node to canvas">+</button>
     <div class="instructions">
         <h3>Graph Canvas Controls:</h3>
         <ul>
@@ -120,11 +120,12 @@
 
         // Initialize with a sample node
         function init() {
-            addNode('Sample Node', 100, 100);
+            addNode('Sample Node (JS)', 100, 100);
         }
 
         function addNode(label, x, y) {
-            const nodeId = `node${nodeCounter++}`;
+            const nodeId = `node${nodeCounter}`;
+            nodeCounter++; // Increment after using
             const node = {
                 id: nodeId,
                 label: label || `Node ${nodeCounter}`,
@@ -142,10 +143,17 @@
             nodeEl.style.left = node.x + 'px';
             nodeEl.style.top = node.y + 'px';
             
-            nodeEl.innerHTML = `
-                <div class="node-header">${node.label}</div>
-                <div class="node-content">ID: ${node.id}<br>Double-click to open webview</div>
-            `;
+            // Use textContent to prevent XSS
+            const headerEl = document.createElement('div');
+            headerEl.className = 'node-header';
+            headerEl.textContent = node.label;
+            
+            const contentEl = document.createElement('div');
+            contentEl.className = 'node-content';
+            contentEl.textContent = `ID: ${node.id}\nDouble-click to open webview`;
+            
+            nodeEl.appendChild(headerEl);
+            nodeEl.appendChild(contentEl);
 
             nodeEl.addEventListener('click', (e) => {
                 e.stopPropagation();

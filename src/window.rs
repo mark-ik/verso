@@ -1098,15 +1098,21 @@ impl Window {
             }
             
             // Initialize with a sample node if activating for the first time
+            // Note: The HTML UI also creates a sample node on init, consider synchronization
             if self.graph_manager.nodes().is_empty() {
                 let node = crate::graph::GraphNode::new(
-                    "node1".to_string(),
-                    "Sample Node".to_string(),
+                    "rust_sample_node".to_string(),
+                    "Sample Node (Rust)".to_string(),
                     100.0,
                     100.0,
                 );
-                self.graph_manager.add_node(node);
+                // Ignore error if node already exists
+                let _ = self.graph_manager.add_node(node);
             }
+        } else {
+            // TODO: Consider cleaning up graph panel when deactivating
+            // Currently left alive to preserve state, but consumes resources
+            log::debug!("Graph view deactivated (panel kept alive)");
         }
         
         log::info!("Graph view toggled: {}", active);
@@ -1124,7 +1130,8 @@ impl Window {
         };
 
         let graph_panel_id = WebViewId::new();
-        let url = ServoUrl::parse("verso://resources/components/graph.html").unwrap();
+        let url = ServoUrl::parse("verso://resources/components/graph.html")
+            .expect("Invalid internal graph panel URL");
         
         self.graph_panel = Some(Panel {
             webview: WebView::new(graph_panel_id, viewport_details),
@@ -1166,7 +1173,8 @@ impl Window {
                 node.webview_id = Some(webview_id);
                 
                 // Create the webview with initial URL
-                let initial_url = ServoUrl::parse("https://servo.org").unwrap();
+                let initial_url = ServoUrl::parse("https://servo.org")
+                    .expect("Invalid default webview URL");
                 send_to_constellation(
                     constellation_sender,
                     EmbedderToConstellationMessage::NewWebView(
@@ -1217,10 +1225,14 @@ impl Window {
                         response_sender,
                     } => {
                         // Handle OPEN_NODE_WEBVIEW messages from graph.html
-                        if message.starts_with("OPEN_NODE_WEBVIEW:") {
-                            let node_id = message.strip_prefix("OPEN_NODE_WEBVIEW:").unwrap();
-                            log::info!("Opening webview for node: {}", node_id);
-                            self.handle_graph_node_double_click(node_id, &sender);
+                        if let Some(node_id) = message.strip_prefix("OPEN_NODE_WEBVIEW:") {
+                            // Validate node_id: only alphanumeric and underscore, max 100 chars
+                            if node_id.len() <= 100 && node_id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+                                log::info!("Opening webview for node: {}", node_id);
+                                self.handle_graph_node_double_click(node_id, &sender);
+                            } else {
+                                log::warn!("Invalid node_id rejected: {}", node_id);
+                            }
                             let _ = response_sender.send(PromptResponse::default());
                             return false;
                         }

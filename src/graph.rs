@@ -1,7 +1,6 @@
 use base::id::WebViewId;
 use serde::{Deserialize, Serialize};
 use webrender_api::units::{DevicePoint, DeviceRect};
-use euclid::Point2D;
 
 /// A node in the graph canvas
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -10,14 +9,12 @@ pub struct GraphNode {
     pub id: String,
     /// Label/title of the node
     pub label: String,
-    /// Position of the node in canvas coordinates
-    pub position: Point2D<f32, DevicePoint>,
+    /// Position of the node in canvas coordinates (DevicePoint is already Point2D<f32, DevicePixel>)
+    pub position: DevicePoint,
     /// Size of the node
     pub size: (f32, f32),
     /// Optional WebView ID if a webview is displayed in this node
     pub webview_id: Option<WebViewId>,
-    /// Whether the node is currently selected
-    pub selected: bool,
 }
 
 impl GraphNode {
@@ -26,10 +23,9 @@ impl GraphNode {
         Self {
             id,
             label,
-            position: Point2D::new(x, y),
+            position: DevicePoint::new(x, y),
             size: (200.0, 100.0), // Default size
             webview_id: None,
-            selected: false,
         }
     }
 
@@ -46,7 +42,7 @@ impl GraphNode {
     /// Get the bounding rectangle for this node
     pub fn get_rect(&self) -> DeviceRect {
         DeviceRect::from_origin_and_size(
-            DevicePoint::new(self.position.x, self.position.y),
+            self.position,
             euclid::Size2D::new(self.size.0, self.size.1),
         )
     }
@@ -70,8 +66,13 @@ impl GraphManager {
     }
 
     /// Add a node to the graph
-    pub fn add_node(&mut self, node: GraphNode) {
+    /// Returns an error if a node with the same ID already exists
+    pub fn add_node(&mut self, node: GraphNode) -> Result<(), String> {
+        if self.nodes.iter().any(|n| n.id == node.id) {
+            return Err(format!("Node with id '{}' already exists", node.id));
+        }
         self.nodes.push(node);
+        Ok(())
     }
 
     /// Get a mutable reference to a node by ID
@@ -81,6 +82,7 @@ impl GraphManager {
 
     /// Get a node by position (for click detection)
     pub fn get_node_at_position(&self, point: &DevicePoint) -> Option<&GraphNode> {
+        // TODO: For large graphs, consider spatial indexing (quadtree/grid) for better performance
         self.nodes.iter().rev().find(|n| n.contains_point(point))
     }
 
@@ -99,18 +101,27 @@ impl GraphManager {
         self.active = active;
     }
 
-    /// Remove a node by ID
-    pub fn remove_node(&mut self, id: &str) -> Option<GraphNode> {
+    /// Remove a node by ID and return its webview ID if it had one
+    /// Caller is responsible for sending CloseWebView message to constellation
+    pub fn remove_node(&mut self, id: &str) -> Option<(GraphNode, Option<WebViewId>)> {
         if let Some(pos) = self.nodes.iter().position(|n| n.id == id) {
-            Some(self.nodes.remove(pos))
+            let node = self.nodes.remove(pos);
+            let webview_id = node.webview_id;
+            Some((node, webview_id))
         } else {
             None
         }
     }
 
-    /// Clear all nodes
-    pub fn clear(&mut self) {
+    /// Clear all nodes and return any webview IDs that need cleanup
+    /// Caller is responsible for sending CloseWebView messages to constellation
+    pub fn clear(&mut self) -> Vec<WebViewId> {
+        let webview_ids: Vec<WebViewId> = self.nodes
+            .iter()
+            .filter_map(|n| n.webview_id)
+            .collect();
         self.nodes.clear();
+        webview_ids
     }
 }
 
