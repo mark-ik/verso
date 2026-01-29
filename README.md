@@ -104,9 +104,21 @@ Nightly releases built with CrabNebula Cloud can be found at [releases](https://
 
 > Packages are unsigned currently. If you have problem opening the app on macOS, try `xattr -d com.apple.quarantine /Applications/verso.app` after installation.
 
+## Graph UI Feature
+
+Verso now includes an experimental graph UI feature that provides a node-based canvas interface:
+
+- Press **Ctrl+G** (Cmd+G on macOS) to toggle the graph view
+- Drag nodes around the canvas
+- Double-click nodes to open Servo webviews
+- Click the **+** button to add new nodes
+
+See [GRAPH_UI.md](GRAPH_UI.md) for detailed documentation.
+
 ## Future Work
 
 - Multi-window support.
 - Enable multiprocess mode.
 - Enable sandbox in all platforms.
 - Enable `Gstreamer` feature.
+- Graph UI enhancements: webview embedding in nodes, connections, persistence.
