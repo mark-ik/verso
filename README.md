@@ -1,112 +1,52 @@
 # Verso
 
-> [!NOTE]  
-> Verso is currently no longer maintained. The Verso web browser project was an effort to build a functional web browser on top of the Servo web engine, with the goal of identifying what is needed for Servo to evolve into a mature browser. Several major contributions from this project have been integrated into Servo, as detailed in [Behind the Scenes of Verso Browser Development](https://wusyong.github.io/posts/verso-ui/).
->  
-> As the project progressed, multiple significant revisions to Servo were released, and the Verso browser was unable to keep pace with these updates due to limited manpower and funding. Therefore, we will be archiving the repository for now and look forward to a future opportunity to revitalize the project and continue contributing to the Servo ecosystem.
+Verso is a local-first spatial browser that represents webpages as nodes in a force-directed graph. It is an experimental research tool focused on sense-making and exploratory workflows.
 
-[![project chat](https://img.shields.io/badge/zulip-57a7ff?style=for-the-badge&labelColor=555555&logo=zulip)](https://versotile.zulipchat.com/)
+Canonical documentation
 
-A web browser that plays old world blues to build new world hope.
+- `GRAPH_INTERFACE.md` — Interaction model, physics presets, renderer/camera, and implementation notes.
+- `VERSE.md` — Phase 3 research: tokenization model, peer roles, storage economics, and governance.
+- `archive_docs/` — Agglomerized design notes (archival copies).
 
-<img src="https://github.com/user-attachments/assets/ca124b2b-c54c-4796-b2cb-0819228495b6" width="600" alt="The Verso logo with a sitting cat, written in ASCII art, rendered in orange on black as on an old CRT monitor" />
+Quick start
 
-Verso is a web browser built on top of the [Servo](https://servo.org/) web engine. We aim to explore embedding solutions for Servo while growing it into a mature browser one day.
-This means we want to experiment with multi-view and multi-window first and then build UI elements entirely from Servo itself. At the moment, [Servoshell](https://servo.org/download/) should provide a better user experience.
-
-Verso is still under development. We don't accept feature requests at the moment, and the whole navigation workflow hasn't been polished yet, either. But if you are interested, feel free to open bug-fix PRs.
-
-# Usage
-
-## Getting Started
-
-### Windows
-
-- Install [scoop](https://scoop.sh/) and then install other tools:
-
-```sh
-scoop install git python llvm cmake curl
-pip install mako
+```powershell
+git clone https://github.com/markik/verso
+cd verso
+cargo build --release
+./target/release/verso
 ```
 
-> You can also use chocolatey to install if you prefer it.
+Requirements
 
-- Build & run:
+- Rust (see `rust-toolchain.toml`).
+- Platform tooling for Servo builds: see `archive_docs/SERVO_MIGRATION_SUMMARY.md` if you plan to build Servo on Windows.
 
-```sh
-cargo run
-```
+Architecture
 
-### MacOS
+`verso-graph-core` is a standalone library containing graph model, physics, rendering primitives, camera, serialization, and pluggable traits. The `verso` application integrates a UI backend (egui for MVP) and a browser engine (Servo for MVP).
 
-- Install [Xcode](https://developer.apple.com/xcode/)
-- Install [Homebrew](https://brew.sh/) and then install other tools:
+Modular design enables **embedding**—integrating the graph canvas into different host applications or contexts:
 
-```sh
-brew install cmake pkg-config harfbuzz python@3 # Install required dependencies CMake, pkg-config, HarfBuzz, and Python 3.
-pip3 install mako # Install the Mako templating engine
-curl https://sh.rustup.rs -sSf | sh # Install Rust and Cargo
-```
+- **UI backend trait**: Switch between egui, Xilem+Vello, or GPUI. Allows the graph canvas to render in different UI frameworks without changing core logic.
+- **Browser engine trait**: Servo (MVP), Tao+Wry (Chromium backend), or other implementations. Each handles webview rendering independently.
+- **Data format**: Graph metadata stored as JSON with a standard schema. Exportable to other applications, browser history formats, or P2P networks.
 
-- Build & run:
+Phases
 
-```sh
-cargo run
-```
+Phase 1 (MVP, weeks 1–8): Force-directed graph canvas, WASD navigation, Servo integration, detail windows with connection tabs, JSON save/load, live search. Single-click select + double-click open interaction model.
 
-### Linux
+Phase 1.5 (validation, weeks 9–10): Use Verso for real work. Test interaction model. Evaluate Petgraph. Prioritize Phase 2 based on actual usage patterns.
 
-#### Flatpak
+Phase 2 (sense-making, weeks 11–18): Session management with history view. Optional sidebar. DOM extraction UI. Clustering and grouping. 3D/2D rendering toggle. Level-of-detail rendering. Export to JSON/PNG/HTML.
 
-For unified environment setup and package experience, we choose Flatpak to build the project from the start.
-Please follow the [Flatpak Setup](https://flatpak.org/setup/) page to install Flatpak based on your distribution.
+Phase 3 (ecosystem, weeks 19–24): Browser extension architecture (Chrome/Firefox). Node/graph sharing via URLs. P2P sync (optional, async-first). Tokenization research via `VERSE.md`; implementation deferred.
 
-- Install flatpak runtimes and extensions:
+See `archive_docs/` for detailed phase breakdown, feature specifications, and timeline estimates.
 
-```sh
-flatpak install flathub org.freedesktop.Platform//24.08
-flatpak install flathub org.freedesktop.Sdk//24.08
-flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//24.08
-flatpak install flathub org.freedesktop.Sdk.Extension.llvm18//24.08
-```
+Contributing and license
 
-- Generate manifests and build:
-// TODO Exporting to a repository instead
+- See `.github/CONTRIBUTING.md` and `.github/CODE_OF_CONDUCT.md`.
+- Dual-licensed: MIT or Apache-2.0.
 
-```sh
-python3 ./flatpak-cargo-generator.py ./Cargo.lock -o cargo-sources.json
-flatpak-builder --user --install --force-clean target org.versotile.verso.yml
-flatpak run org.versotile.verso
-```
-
-#### Nix
-
-We also support building Verso in nix shell. But we don't bundle it in nix at the moment.
-
-- For NixOS:
-
-```sh
-nix-shell shell.nix --run 'cargo r'
-```
-
-- For non-NixOS distributions:
-
-```sh
-nix-shell shell.nix --run 'nixGL cargo r'
-```
-
-If you prefer to build the project without any sandbox, please follow the instructions in [Servo book](https://book.servo.org/hacking/setting-up-your-environment.html#tools-for-linux) to bootstrap.
-But please understand we don't triage any build issue without flatpak or nix setup.
-
-## Nightly Release
-
-Nightly releases built with CrabNebula Cloud can be found at [releases](https://web.crabnebula.cloud/verso/verso-nightly/releases).
-
-> Packages are unsigned currently. If you have problem opening the app on macOS, try `xattr -d com.apple.quarantine /Applications/verso.app` after installation.
-
-## Future Work
-
-- Multi-window support.
-- Enable multiprocess mode.
-- Enable sandbox in all platforms.
-- Enable `Gstreamer` feature.
+See `GRAPH_INTERFACE.md` and `VERSE.md` for implementation and research details.

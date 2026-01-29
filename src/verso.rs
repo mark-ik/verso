@@ -9,7 +9,7 @@ use base::id::{PipelineNamespace, PipelineNamespaceId, WebViewId};
 use bluetooth::BluetoothThreadFactory;
 use bluetooth_traits::BluetoothRequest;
 use canvas::canvas_paint_thread::CanvasPaintThread;
-use compositing_traits::{
+use paint_api::{
     CompositorMsg, CompositorProxy, CrossProcessCompositorApi, WebrenderExternalImageHandlers,
     WebrenderImageHandlerType,
 };

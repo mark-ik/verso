@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use base::cross_process_instant::CrossProcessInstant;
 use base::id::{PipelineId, WebViewId};
 use base::{Epoch, WebRenderEpochToU16};
-use compositing_traits::display_list::{CompositorDisplayListInfo, HitTestInfo, ScrollTree};
-use compositing_traits::{
+use paint_api::display_list::{CompositorDisplayListInfo, HitTestInfo, ScrollTree};
+use paint_api::{
     CompositionPipeline, CompositorMsg, CompositorProxy, ImageUpdate, SendableFrameTree,
 };
 use constellation_traits::{
