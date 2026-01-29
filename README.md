@@ -1,14 +1,20 @@
 # Verso
 
-Verso is a local-first spatial browser that represents webpages as nodes in a force-directed graph. It is an experimental research tool focused on sense-making and exploratory workflows.
+Verso is an experimental browser built on [Servo](https://servo.org/), using Rust and WebRender for rendering.
 
-Canonical documentation
+## Current State
 
-- `GRAPH_INTERFACE.md` — Interaction model, physics presets, renderer/camera, and implementation notes.
-- `VERSE.md` — Phase 3 research: tokenization model, peer roles, storage economics, and governance.
-- `archive_docs/` — Agglomerized design notes (archival copies).
+Verso is currently a **tab-based browser** with support for:
+- Multiple tabs and windows via Winit event loop
+- WebRender-based rendering with Servo integration
+- Download management
+- Configuration system
+- Clipboard support (via arboard)
+- Keyboard and touch input handling
 
-Quick start
+**Planned**: Migration to a force-directed graph canvas interface for spatial browsing (see [design_docs/](design_docs/) for research and specifications).
+
+## Quick Start
 
 ```powershell
 git clone https://github.com/markik/verso
@@ -17,36 +23,89 @@ cargo build --release
 ./target/release/verso
 ```
 
-Requirements
+## Requirements
 
-- Rust (see `rust-toolchain.toml`).
-- Platform tooling for Servo builds: see `archive_docs/SERVO_MIGRATION_SUMMARY.md` if you plan to build Servo on Windows.
+- Rust (see [rust-toolchain.toml](rust-toolchain.toml))
+- Platform tooling for Servo builds
+  - **Windows**: MozillaBuild (includes LLVM, clang, etc.) — see [design_docs/SERVO_MIGRATION_SUMMARY.md](design_docs/SERVO_MIGRATION_SUMMARY.md)
+  - **Linux/macOS**: Standard development toolchain
+  - **Alternative**: Nix shell (`nix-shell` using [shell.nix](shell.nix))
 
-Architecture
+## Architecture
 
-`verso-graph-core` is a standalone library containing graph model, physics, rendering primitives, camera, serialization, and pluggable traits. The `verso` application integrates a UI backend (egui for MVP) and a browser engine (Servo for MVP).
+### Core Components
 
-Modular design enables **embedding**—integrating the graph canvas into different host applications or contexts:
+- **[src/main.rs](src/main.rs)**: Winit-based event loop with ApplicationHandler
+- **[src/verso.rs](src/verso.rs)**: Main Verso struct integrating Servo constellation, compositor, and webview pool
+- **[src/compositor.rs](src/compositor.rs)**: Rendering coordination with WebRender and display lists
+- **[src/window.rs](src/window.rs)**: Window management and event handling
+- **[src/tab.rs](src/tab.rs)**: Tab data structures
+- **[src/webview/](src/webview/)**: WebView embedding and context menu handling
+  - [context_menu.rs](src/webview/context_menu.rs): Right-click menu
+  - [webview.rs](src/webview/webview.rs): WebView lifecycle management
+  - [prompt.rs](src/webview/prompt.rs): Alert/prompt dialogs
+- **[src/download.rs](src/download.rs)**: Download manager
+- **[src/storage.rs](src/storage.rs)**: Persistence layer
+- **[src/config.rs](src/config.rs)**: Configuration management
+- **[src/keyboard.rs](src/keyboard.rs)**: Keyboard input handling
+- **[src/touch.rs](src/touch.rs)**: Touch input handling
+- **[src/rendering.rs](src/rendering.rs)**: Rendering utilities
+- **[src/errors.rs](src/errors.rs)**: Error types
 
-- **UI backend trait**: Switch between egui, Xilem+Vello, or GPUI. Allows the graph canvas to render in different UI frameworks without changing core logic.
-- **Browser engine trait**: Servo (MVP), Tao+Wry (Chromium backend), or other implementations. Each handles webview rendering independently.
-- **Data format**: Graph metadata stored as JSON with a standard schema. Exportable to other applications, browser history formats, or P2P networks.
+### Crates
 
-Phases
+- **verso** (library): Builder pattern and public API ([verso/src/main.rs](verso/src/main.rs) demonstrates usage)
+- **versoview_messages**: IPC message types for webview communication
+- **versoview_build**: Build support utilities
 
-Phase 1 (MVP, weeks 1–8): Force-directed graph canvas, WASD navigation, Servo integration, detail windows with connection tabs, JSON save/load, live search. Single-click select + double-click open interaction model.
+### Dependencies
 
-Phase 1.5 (validation, weeks 9–10): Use Verso for real work. Test interaction model. Evaluate Petgraph. Prioritize Phase 2 based on actual usage patterns.
+Key external dependencies:
+- **Servo**: constellation (tab/pipeline management), compositor, script, layout, canvas, webrender
+- **Winit**: Window creation and event loop
+- **crossbeam**: Channel-based concurrency
+- **ipc-channel**: Inter-process communication
+- **arboard**: Clipboard access
+- **serde**: Serialization/deserialization
 
-Phase 2 (sense-making, weeks 11–18): Session management with history view. Optional sidebar. DOM extraction UI. Clustering and grouping. 3D/2D rendering toggle. Level-of-detail rendering. Export to JSON/PNG/HTML.
+## Building
 
-Phase 3 (ecosystem, weeks 19–24): Browser extension architecture (Chrome/Firefox). Node/graph sharing via URLs. P2P sync (optional, async-first). Tokenization research via `VERSE.md`; implementation deferred.
+### Standard Build
+```powershell
+cargo build --release
+```
 
-See `archive_docs/` for detailed phase breakdown, feature specifications, and timeline estimates.
+### With Nix (Linux/macOS)
+```bash
+nix-shell
+cargo build --release
+```
 
-Contributing and license
+### Windows with MozillaBuild
+Follow Servo's official setup, then:
+```powershell
+cargo build --release
+```
 
-- See `.github/CONTRIBUTING.md` and `.github/CODE_OF_CONDUCT.md`.
-- Dual-licensed: MIT or Apache-2.0.
+## Design Documents
 
-See `GRAPH_INTERFACE.md` and `VERSE.md` for implementation and research details.
+Research, specifications, and future roadmap:
+- [design_docs/GRAPH_INTERFACE.md](design_docs/GRAPH_INTERFACE.md) — Interaction model for planned graph canvas
+- [design_docs/GRAPH_BROWSER_MIGRATION.md](design_docs/GRAPH_BROWSER_MIGRATION.md) — Migration plan from tabs to graph
+- [design_docs/PROJECT_PHILOSOPHY.md](design_docs/PROJECT_PHILOSOPHY.md) — Vision and design principles
+- [design_docs/VERSE.md](design_docs/VERSE.md) — Phase 3+ tokenization and P2P research
+- [design_docs/](design_docs/) — Full archive of research and specifications
+
+## Contributing
+
+See [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) and [.github/CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md).
+
+## License
+
+Dual-licensed: MIT or Apache-2.0
+
+## References
+
+- [Servo Browser Engine](https://servo.org/)
+- [WebRender](https://github.com/servo/webrender)
+- [Winit](https://github.com/rust-windowing/winit)
