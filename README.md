@@ -2,6 +2,13 @@
 
 Verso is a local-first spatial browser that represents webpages as nodes in a force-directed graph. It is an experimental research tool focused on sense-making and exploratory workflows.
 
+## Project Status
+
+**Current Phase:** Design and planning  
+**Implementation Status:** This is a fork of Servo implementing standard tabbed browsing. The spatial graph browser described in this documentation is planned but not yet implemented.
+
+The architecture, features, and roadmap described below represent design goals and future development plans.
+
 Canonical documentation
 
 - `GRAPH_INTERFACE.md` — Interaction model, physics presets, renderer/camera, and implementation notes.

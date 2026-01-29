@@ -1,5 +1,7 @@
 ## Graph interface and interaction model
 
+> **Note:** This document describes planned features for the spatial graph browser. The interaction model, physics presets, and rendering system detailed here are design specifications, not current implementation.
+
 Purpose
 - Define the interaction model, physics presets, rendering and camera expectations, and short implementation notes for the graph canvas.
 

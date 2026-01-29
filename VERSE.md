@@ -1,7 +1,7 @@
 # Verse — Phase 3 research: tokenization, networks, economics
 
 Purpose
-- Define an optional, experimental architecture for sharing and valuing report-like artifacts derived from user activity. This is research; it is not required for the MVP.
+- Define an optional, experimental architecture for sharing and valuing report-like artifacts derived from user activity. This is speculative research for Phase 3+; it is not required for the MVP and describes a hypothetical system that does not yet exist.
 
 Token model (high level)
 - Report token (NFT-style): immutable record of a report (URL, selector, metadata, timestamp). Portable and exportable; can remain private or be contributed to a network.
