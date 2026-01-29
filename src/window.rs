@@ -86,6 +86,8 @@ pub struct Window {
     pub(crate) surface: Surface<WindowSurface>,
     /// The main panel of this window.
     pub(crate) panel: Option<Panel>,
+    /// The graph canvas panel for node-based UI
+    pub(crate) graph_panel: Option<Panel>,
     /// The WebView of this window.
     // pub(crate) webview: Option<WebView>,
     /// Event listeners registered from the webview controller
@@ -155,6 +157,7 @@ impl Window {
                 cursor_state: CursorState::default(),
                 surface,
                 panel: None,
+                graph_panel: None,
                 event_listeners: Default::default(),
                 mouse_position: Default::default(),
                 modifiers_state: Cell::new(ModifiersState::default()),
@@ -204,6 +207,7 @@ impl Window {
             cursor_state: CursorState::default(),
             surface,
             panel: None,
+            graph_panel: None,
             // webview: None,
             event_listeners: Default::default(),
             mouse_position: Default::default(),
@@ -740,7 +744,7 @@ impl Window {
                 }
                 (modifiers, Code::KeyG) if modifiers == control_or_meta => {
                     // Toggle graph view with Ctrl+G (Cmd+G on macOS)
-                    (*self).toggle_graph_view();
+                    (*self).toggle_graph_view(&compositor.constellation_chan);
                     return true;
                 }
 
@@ -777,6 +781,17 @@ impl Window {
                     clipboard,
                     compositor,
                     bookmark_manager,
+                );
+            }
+        }
+        // Handle message in Graph Panel
+        if let Some(graph_panel) = &self.graph_panel {
+            if graph_panel.webview.webview_id == webview_id {
+                return self.handle_servo_messages_with_graph_panel(
+                    webview_id,
+                    message,
+                    sender.clone(),
+                    compositor,
                 );
             }
         }
@@ -1072,22 +1087,56 @@ impl Window {
     }
 
     /// Toggle graph view on/off
-    pub fn toggle_graph_view(&mut self) {
+    pub fn toggle_graph_view(&mut self, constellation_sender: &Sender<EmbedderToConstellationMessage>) {
         let active = !self.graph_manager.is_active();
         self.graph_manager.set_active(active);
         
-        // Initialize with a sample node if activating for the first time
-        if active && self.graph_manager.nodes().is_empty() {
-            let node = crate::graph::GraphNode::new(
-                "node1".to_string(),
-                "Sample Node".to_string(),
-                100.0,
-                100.0,
-            );
-            self.graph_manager.add_node(node);
+        if active {
+            // Create graph panel if it doesn't exist
+            if self.graph_panel.is_none() {
+                self.create_graph_panel(constellation_sender);
+            }
+            
+            // Initialize with a sample node if activating for the first time
+            if self.graph_manager.nodes().is_empty() {
+                let node = crate::graph::GraphNode::new(
+                    "node1".to_string(),
+                    "Sample Node".to_string(),
+                    100.0,
+                    100.0,
+                );
+                self.graph_manager.add_node(node);
+            }
         }
         
         log::info!("Graph view toggled: {}", active);
+    }
+
+    /// Create the graph canvas panel
+    fn create_graph_panel(&mut self, constellation_sender: &Sender<EmbedderToConstellationMessage>) {
+        let hidpi_scale_factor = Scale::new(self.scale_factor() as f32);
+        let size = self.window.inner_size();
+        let size = Size2D::new(size.width as f32, size.height as f32);
+        let size = size.to_f32() / hidpi_scale_factor;
+        let viewport_details = embedder_traits::ViewportDetails {
+            size,
+            hidpi_scale_factor,
+        };
+
+        let graph_panel_id = WebViewId::new();
+        let url = ServoUrl::parse("verso://resources/components/graph.html").unwrap();
+        
+        self.graph_panel = Some(Panel {
+            webview: WebView::new(graph_panel_id, viewport_details),
+            initial_url: url.clone(),
+        });
+
+        send_to_constellation(
+            constellation_sender,
+            EmbedderToConstellationMessage::NewWebView(url, graph_panel_id, viewport_details),
+        );
+        
+        log::info!("Graph panel created with id: {:?}", graph_panel_id);
     }
 
     /// Handle double-click on a graph node
@@ -1141,6 +1190,55 @@ impl Window {
         self.graph_manager
             .get_node_at_position(&point)
             .map(|node| node.id.clone())
+    }
+
+    /// Handle servo messages with graph panel. Return true if it requests a new window.
+    fn handle_servo_messages_with_graph_panel(
+        &mut self,
+        _panel_id: WebViewId,
+        message: EmbedderMsg,
+        sender: Sender<EmbedderToConstellationMessage>,
+        compositor: &mut IOCompositor,
+    ) -> bool {
+        log::trace!("Verso Graph Panel is handling Embedder message: {message:?}");
+        match message {
+            EmbedderMsg::WebViewBlurred => {
+                self.focused_webview_id = None;
+            }
+            EmbedderMsg::WebViewFocused(webview_id) => {
+                self.focused_webview_id = Some(webview_id);
+                log::debug!("Graph panel focused: {}", webview_id);
+            }
+            EmbedderMsg::ShowSimpleDialog(_webview_id, simple_dialog) => {
+                match simple_dialog {
+                    embedder_traits::SimpleDialog::Prompt {
+                        message,
+                        default: _,
+                        response_sender,
+                    } => {
+                        // Handle OPEN_NODE_WEBVIEW messages from graph.html
+                        if message.starts_with("OPEN_NODE_WEBVIEW:") {
+                            let node_id = message.strip_prefix("OPEN_NODE_WEBVIEW:").unwrap();
+                            log::info!("Opening webview for node: {}", node_id);
+                            self.handle_graph_node_double_click(node_id, &sender);
+                            let _ = response_sender.send(PromptResponse::default());
+                            return false;
+                        }
+                        
+                        let _ = response_sender.send(PromptResponse::default());
+                    }
+                    _ => {}
+                }
+            }
+            EmbedderMsg::NotifyLoadStatusChanged(_webview_id, status) => {
+                if status == embedder_traits::LoadStatus::Complete {
+                    log::info!("Graph panel loaded completely");
+                    self.window.request_redraw();
+                }
+            }
+            _ => log::trace!("Graph panel ignores message: {message:?}"),
+        }
+        false
     }
 }
 
