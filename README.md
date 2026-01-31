@@ -1,111 +1,95 @@
-# Verso
+- # Verso
 
-Verso is an experimental browser built on [Servo](https://servo.org/), using Rust and WebRender for rendering.
+A web browser that plays old world blues to build new world hope.
 
-## Current State
+<img src="https://github.com/user-attachments/assets/ca124b2b-c54c-4796-b2cb-0819228495b6" width="600" alt="The Verso logo with a sitting cat, written in ASCII art, rendered in orange on black as on an old CRT monitor" />
 
-Verso is currently a **tab-based browser** with support for:
-- Multiple tabs and windows via Winit event loop
-- WebRender-based rendering with Servo integration
-- Download management
-- Configuration system
-- Clipboard support (via arboard)
-- Keyboard and touch input handling
+Verso is a web browser built on top of the [Servo](https://servo.org/) web engine. It was archived Oct 8th, 2025, but this fork seeks to salvage components of Verso for a learning project. 
 
-**Planned**: Migration to a force-directed graph canvas interface for spatial browsing (see [design_docs/](design_docs/) for research and specifications).
+I am using AI and seeing how close I can get to a vision for a different kind of browser UI. This is not intended to be a functional browser or a proper successor to Verso; I'm trying to familiarize myself with Servo, the choices made in creating Verso, and to prepare for a future when Servo is more complete and embeddable.
 
-## Quick Start
+You can see summaries of the planned design in /design_docs. Though I am using AI to understand the codebase and make changes, I have years of notes regarding this force directed node graph browser UI, and I merely fed those notes into a model to generate much of that documentation, which, trust me, is me doing you a favor.
 
-```powershell
-git clone https://github.com/markik/verso
-cd verso
-cargo build --release
-./target/release/verso
+Happy to stop using any component or repo for this project if the original author would prefer it. I do not pretend to be a professional developer, and I welcome criticism and advice regarding the idea.
+
+# Usage
+
+## Getting Started
+
+### Windows
+
+- Install [scoop](https://scoop.sh/) and then install other tools:
+
+```sh
+scoop install git python llvm cmake curl
+pip install mako
 ```
 
-## Requirements
+> You can also use chocolatey to install if you prefer it.
 
-- Rust (see [rust-toolchain.toml](rust-toolchain.toml))
-- Platform tooling for Servo builds
-  - **Windows**: MozillaBuild (includes LLVM, clang, etc.) — see [design_docs/SERVO_MIGRATION_SUMMARY.md](design_docs/SERVO_MIGRATION_SUMMARY.md)
-  - **Linux/macOS**: Standard development toolchain
-  - **Alternative**: Nix shell (`nix-shell` using [shell.nix](shell.nix))
+- Build & run:
 
-## Architecture
-
-### Core Components
-
-- **[src/main.rs](src/main.rs)**: Winit-based event loop with ApplicationHandler
-- **[src/verso.rs](src/verso.rs)**: Main Verso struct integrating Servo constellation, compositor, and webview pool
-- **[src/compositor.rs](src/compositor.rs)**: Rendering coordination with WebRender and display lists
-- **[src/window.rs](src/window.rs)**: Window management and event handling
-- **[src/tab.rs](src/tab.rs)**: Tab data structures
-- **[src/webview/](src/webview/)**: WebView embedding and context menu handling
-  - [context_menu.rs](src/webview/context_menu.rs): Right-click menu
-  - [webview.rs](src/webview/webview.rs): WebView lifecycle management
-  - [prompt.rs](src/webview/prompt.rs): Alert/prompt dialogs
-- **[src/download.rs](src/download.rs)**: Download manager
-- **[src/storage.rs](src/storage.rs)**: Persistence layer
-- **[src/config.rs](src/config.rs)**: Configuration management
-- **[src/keyboard.rs](src/keyboard.rs)**: Keyboard input handling
-- **[src/touch.rs](src/touch.rs)**: Touch input handling
-- **[src/rendering.rs](src/rendering.rs)**: Rendering utilities
-- **[src/errors.rs](src/errors.rs)**: Error types
-
-### Crates
-
-- **verso** (library): Builder pattern and public API ([verso/src/main.rs](verso/src/main.rs) demonstrates usage)
-- **versoview_messages**: IPC message types for webview communication
-- **versoview_build**: Build support utilities
-
-### Dependencies
-
-Key external dependencies:
-- **Servo**: constellation (tab/pipeline management), compositor, script, layout, canvas, webrender
-- **Winit**: Window creation and event loop
-- **crossbeam**: Channel-based concurrency
-- **ipc-channel**: Inter-process communication
-- **arboard**: Clipboard access
-- **serde**: Serialization/deserialization
-
-## Building
-
-### Standard Build
-```powershell
-cargo build --release
+```sh
+cargo run
 ```
 
-### With Nix (Linux/macOS)
-```bash
-nix-shell
-cargo build --release
+### MacOS
+
+- Install [Xcode](https://developer.apple.com/xcode/)
+- Install [Homebrew](https://brew.sh/) and then install other tools:
+
+```sh
+brew install cmake pkg-config harfbuzz python@3 # Install required dependencies CMake, pkg-config, HarfBuzz, and Python 3.
+pip3 install mako # Install the Mako templating engine
+curl https://sh.rustup.rs -sSf | sh # Install Rust and Cargo
 ```
 
-### Windows with MozillaBuild
-Follow Servo's official setup, then:
-```powershell
-cargo build --release
+- Build & run:
+
+```sh
+cargo run
 ```
 
-## Design Documents
+### Linux
 
-Research, specifications, and future roadmap:
-- [design_docs/GRAPH_INTERFACE.md](design_docs/GRAPH_INTERFACE.md) — Interaction model for planned graph canvas
-- [design_docs/GRAPH_BROWSER_MIGRATION.md](design_docs/GRAPH_BROWSER_MIGRATION.md) — Migration plan from tabs to graph
-- [design_docs/PROJECT_PHILOSOPHY.md](design_docs/PROJECT_PHILOSOPHY.md) — Vision and design principles
-- [design_docs/VERSE.md](design_docs/VERSE.md) — Phase 3+ tokenization and P2P research
-- [design_docs/](design_docs/) — Full archive of research and specifications
+#### Flatpak
 
-## Contributing
+For unified environment setup and package experience, we choose Flatpak to build the project from the start.
+Please follow the [Flatpak Setup](https://flatpak.org/setup/) page to install Flatpak based on your distribution.
 
-See [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) and [.github/CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md).
+- Install flatpak runtimes and extensions:
 
-## License
+```sh
+flatpak install flathub org.freedesktop.Platform//24.08
+flatpak install flathub org.freedesktop.Sdk//24.08
+flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//24.08
+flatpak install flathub org.freedesktop.Sdk.Extension.llvm18//24.08
+```
 
-Dual-licensed: MIT or Apache-2.0
+- Generate manifests and build:
+// TODO Exporting to a repository instead
 
-## References
+```sh
+python3 ./flatpak-cargo-generator.py ./Cargo.lock -o cargo-sources.json
+flatpak-builder --user --install --force-clean target org.versotile.verso.yml
+flatpak run org.versotile.verso
+```
 
-- [Servo Browser Engine](https://servo.org/)
-- [WebRender](https://github.com/servo/webrender)
-- [Winit](https://github.com/rust-windowing/winit)
+#### Nix
+
+We also support building Verso in nix shell. But we don't bundle it in nix at the moment.
+
+- For NixOS:
+
+```sh
+nix-shell shell.nix --run 'cargo r'
+```
+
+- For non-NixOS distributions:
+
+```sh
+nix-shell shell.nix --run 'nixGL cargo r'
+```
+
+If you prefer to build the project without any sandbox, please follow the instructions in [Servo book](https://book.servo.org/hacking/setting-up-your-environment.html#tools-for-linux) to bootstrap.
+But please understand we don't triage any build issue without flatpak or nix setup.
